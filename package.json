@@ -25,7 +25,12 @@
   },
   "manifest": {
     "host_permissions": [
-      "https://*/*"
+      "https://x.com/*",
+      "https://twitter.com/*"
+    ],
+    "permissions": [
+      "tabs",
+      "activeTab"
     ]
   }
 }
