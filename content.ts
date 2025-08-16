@@ -20,6 +20,8 @@ interface ScrapedTweet {
   isThread?: boolean;
   threadTweets?: string[];
   threadPosition?: number;
+  quotedTweetUrl?: string;
+  mediaUrls?: string[];
 }
 
 class TwitterScraper {
@@ -68,7 +70,13 @@ class TwitterScraper {
     console.log('Starting tweet scraping with config:', config);
     
     this.sendStatusUpdate('Starting scraping...');
-    this.scrapeAndScroll();
+    
+    // For date range scraping, first scroll to find tweets in range
+    if (config.dateRange) {
+      this.scrollToDateRange();
+    } else {
+      this.scrapeAndScroll();
+    }
   }
 
   private stopScraping() {
@@ -83,15 +91,36 @@ class TwitterScraper {
     this.sendScrapingComplete();
   }
 
-  private scrapeTweets() {
+  private async scrapeTweets() {
     const tweetSelector = '[data-testid="tweet"]';
     const tweetElements = document.querySelectorAll(tweetSelector);
+    
+    // First, expand all "Show more" buttons
+    await this.expandTruncatedTweets();
+    
     let newTweetsFound = 0;
 
     // Process tweets and detect threads
     const processedTweets = this.processTweetsForThreads(Array.from(tweetElements));
     
     processedTweets.forEach(processedTweet => {
+      // Check if we've already reached the target limit
+      if (this.config.maxTweets && this.allTweets.length >= this.config.maxTweets) {
+        return; // Stop adding tweets if we've reached the limit
+      }
+
+      // Check date range filtering
+      if (this.config.dateRange && processedTweet.timestamp) {
+        const tweetDate = new Date(processedTweet.timestamp);
+        const startDate = new Date(this.config.dateRange.start);
+        const endDate = new Date(this.config.dateRange.end);
+        
+        // Skip tweet if it's outside the date range
+        if (tweetDate < startDate || tweetDate > endDate) {
+          return;
+        }
+      }
+
       // Create unique identifier
       const uniqueId = `${processedTweet.text.substring(0, 50)}_${processedTweet.timestamp}`;
       
@@ -100,13 +129,51 @@ class TwitterScraper {
         const existingId = `${tweet.text.substring(0, 50)}_${tweet.timestamp}`;
         return existingId === uniqueId || tweet.text === processedTweet.text;
       })) {
-        this.allTweets.push(processedTweet);
-        newTweetsFound++;
+        // Double-check we haven't exceeded the limit before adding
+        if (!this.config.maxTweets || this.allTweets.length < this.config.maxTweets) {
+          this.allTweets.push(processedTweet);
+          newTweetsFound++;
+        }
       }
     });
 
     console.log(`Scraped ${this.allTweets.length} unique tweets so far (${newTweetsFound} new).`);
-    this.sendStatusUpdate(`Scraped ${this.allTweets.length} tweets...`);
+    
+    // More informative status for date range scraping
+    if (this.config.dateRange) {
+      this.sendStatusUpdate(`Found ${this.allTweets.length} tweets in date range, scrolling...`);
+    } else {
+      this.sendStatusUpdate(`Scraped ${this.allTweets.length} tweets...`);
+    }
+  }
+
+  private async expandTruncatedTweets() {
+    // Find all "Show more" elements, but filter for main tweet buttons only
+    const showMoreElements = document.querySelectorAll('[data-testid="tweet-text-show-more-link"]');
+    const mainTweetButtons: HTMLElement[] = [];
+    
+    showMoreElements.forEach(element => {
+      // Only click if it's a button (main tweet), not a link (quoted tweet)
+      if (element.tagName.toLowerCase() === 'button' && element instanceof HTMLElement) {
+        // Additional check: make sure it's not inside a quoted tweet container
+        const isInQuotedTweet = element.closest('[role="link"]')?.getAttribute('tabindex') === '0';
+        if (!isInQuotedTweet) {
+          mainTweetButtons.push(element);
+        }
+      }
+    });
+    
+    if (mainTweetButtons.length > 0) {
+      console.log(`Found ${mainTweetButtons.length} main tweet "Show more" buttons, clicking them...`);
+      
+      // Click only the main tweet show more buttons
+      mainTweetButtons.forEach(button => {
+        button.click();
+      });
+      
+      // Wait a short time for content to expand
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
   }
 
   private processTweetsForThreads(tweetElements: Element[]): ScrapedTweet[] {
@@ -203,10 +270,55 @@ class TwitterScraper {
                           tweetElement.querySelector('[data-testid="User-Name"]');
     const author = authorElement?.textContent?.trim() || '';
 
+    // Extract quoted tweet URL if present
+    let quotedTweetUrl = '';
+    const quotedTweetLink = tweetElement.querySelector('a[href*="/status/"][data-testid="tweet-text-show-more-link"]');
+    if (quotedTweetLink) {
+      const href = quotedTweetLink.getAttribute('href');
+      if (href) {
+        // Convert relative URL to absolute URL
+        quotedTweetUrl = href.startsWith('http') ? href : `https://x.com${href}`;
+      }
+    }
+
+    // Extract media URLs (images, videos, etc.)
+    const mediaUrls: string[] = [];
+    
+    // Look for photo links
+    const photoLinks = tweetElement.querySelectorAll('a[href*="/photo/"]');
+    photoLinks.forEach(link => {
+      const href = link.getAttribute('href');
+      if (href) {
+        const fullUrl = href.startsWith('http') ? href : `https://x.com${href}`;
+        mediaUrls.push(fullUrl);
+      }
+    });
+
+    // Look for video links
+    const videoLinks = tweetElement.querySelectorAll('a[href*="/video/"]');
+    videoLinks.forEach(link => {
+      const href = link.getAttribute('href');
+      if (href) {
+        const fullUrl = href.startsWith('http') ? href : `https://x.com${href}`;
+        mediaUrls.push(fullUrl);
+      }
+    });
+
+    // Look for direct media URLs (images and videos)
+    const mediaElements = tweetElement.querySelectorAll('img[src*="pbs.twimg.com"], video[poster*="pbs.twimg.com"]');
+    mediaElements.forEach(element => {
+      const src = element.getAttribute('src') || element.getAttribute('poster');
+      if (src && src.includes('pbs.twimg.com')) {
+        mediaUrls.push(src);
+      }
+    });
+
     return {
       text: tweetText,
       timestamp: timestamp,
-      author: author
+      author: author,
+      quotedTweetUrl: quotedTweetUrl || undefined,
+      mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined
     };
   }
 
@@ -238,12 +350,27 @@ class TwitterScraper {
   }
 
   private shouldStopScraping(): boolean {
+    // Always respect max tweets limit first
+    if (this.config.maxTweets && this.allTweets.length >= this.config.maxTweets) {
+      return true;
+    }
+
+    // For scrape all mode, never stop
     if (this.config.scrapeAll) {
       return false;
     }
-    
-    if (this.config.maxTweets && this.allTweets.length >= this.config.maxTweets) {
-      return true;
+
+    // For date range scraping, check if we've scrolled past the start date (older tweets)
+    if (this.config.dateRange) {
+      const startDate = new Date(this.config.dateRange.start);
+      const currentPageTweets = this.getCurrentTweetDates(5);
+      
+      // If we have tweets and ALL visible tweets are older than start date, stop
+      if (currentPageTweets.length >= 3 && 
+          currentPageTweets.every(date => date < startDate)) {
+        console.log('All current tweets are older than start date, stopping');
+        return true;
+      }
     }
 
     return false;
@@ -253,10 +380,106 @@ class TwitterScraper {
     window.scrollTo(0, document.body.scrollHeight);
   }
 
-  private scrapeAndScroll() {
+  private async scrollToDateRange() {
+    if (!this.config.dateRange) return;
+
+    const startDate = new Date(this.config.dateRange.start);
+    const endDate = new Date(this.config.dateRange.end);
+    
+    this.sendStatusUpdate('Finding tweets in date range...');
+    
+    let attempts = 0;
+    const maxAttempts = 50; // Prevent infinite scrolling
+    
+    while (attempts < maxAttempts && this.isActive) {
+      // Check the first few tweets to see their dates
+      const currentTweets = this.getCurrentTweetDates(3);
+      
+      if (currentTweets.length === 0) {
+        // No tweets found, scroll down and try again
+        this.scrollDown();
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        attempts++;
+        continue;
+      }
+
+      // Check if any tweets are in our date range
+      const hasInRangeTweets = currentTweets.some(date => date >= startDate && date <= endDate);
+      
+      if (hasInRangeTweets) {
+        // Found tweets in range, start normal scraping
+        console.log('Found tweets in date range, starting scraping');
+        this.sendStatusUpdate('Found tweets in range, scraping...');
+        this.scrapeAndScroll();
+        return;
+      }
+
+      // Check if we need to scroll up or down
+      const allTweetsAfterRange = currentTweets.every(date => date > endDate);
+      const allTweetsBeforeRange = currentTweets.every(date => date < startDate);
+
+      if (allTweetsAfterRange) {
+        // All tweets are too new, need to scroll down to get older tweets
+        this.scrollDown();
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } else if (allTweetsBeforeRange) {
+        // All tweets are too old, but we might find some in range by continuing to scroll
+        // Don't stop immediately, continue scrolling for a few more attempts
+        if (attempts > 40) {  // Give it more chances before giving up
+          console.log('Scrolled past date range, no tweets found in specified period');
+          this.sendStatusUpdate('No tweets found in date range');
+          this.stopScraping();
+          return;
+        }
+        this.scrollDown();
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+
+      attempts++;
+    }
+
+    if (attempts >= maxAttempts) {
+      console.log('Max scroll attempts reached, starting scraping from current position');
+      this.sendStatusUpdate('Starting scraping from current position');
+      this.scrapeAndScroll();
+    }
+  }
+
+  private getCurrentTweetDates(count: number = 3): Date[] {
+    const tweetSelector = '[data-testid="tweet"]';
+    const tweetElements = Array.from(document.querySelectorAll(tweetSelector)).slice(0, count);
+    const dates: Date[] = [];
+
+    tweetElements.forEach(element => {
+      const timeElement = element.querySelector('time');
+      const datetime = timeElement?.getAttribute('datetime');
+      if (datetime) {
+        dates.push(new Date(datetime));
+      }
+    });
+
+    return dates;
+  }
+
+  private getLatestTweets(count: number): ScrapedTweet[] {
+    const tweetSelector = '[data-testid="tweet"]';
+    const tweetElements = Array.from(document.querySelectorAll(tweetSelector)).slice(0, count);
+    const tweets: ScrapedTweet[] = [];
+
+    tweetElements.forEach(element => {
+      const tweetData = this.extractTweetData(element);
+      if (tweetData) {
+        tweets.push(tweetData);
+      }
+    });
+
+    return tweets;
+  }
+
+  private async scrapeAndScroll() {
     if (!this.isActive) return;
 
-    this.scrapeTweets();
+    await this.scrapeTweets();
     
     // Check if we should stop BEFORE scrolling to get more accurate counts
     if (this.shouldStopScraping()) {

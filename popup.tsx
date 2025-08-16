@@ -7,6 +7,8 @@ interface ScrapedTweet {
   isThread?: boolean;
   threadTweets?: string[];
   threadPosition?: number;
+  quotedTweetUrl?: string;
+  mediaUrls?: string[];
 }
 
 type ScrapeMode = 'all' | 'count' | 'date'
@@ -106,14 +108,16 @@ function IndexPopup() {
   }
 
   const convertToCSV = (tweets: ScrapedTweet[]): string => {
-    const headers = ['Tweet Text', 'Author', 'Timestamp', 'Is Thread', 'Thread Position', 'Full Thread']
+    const headers = ['Tweet Text', 'Author', 'Timestamp', 'Is Thread', 'Thread Position', 'Full Thread', 'Quoted Tweet URL', 'Media URLs']
     const rows = tweets.map(tweet => [
       `"${tweet.text.replace(/"/g, '""')}"`,
       `"${tweet.author || 'Unknown'}"`,
       `"${tweet.timestamp || 'Unknown'}"`,
       `"${tweet.isThread ? 'Yes' : 'No'}"`,
       `"${tweet.threadPosition || ''}"`,
-      `"${tweet.isThread && tweet.threadTweets ? tweet.threadTweets.map(t => t.replace(/"/g, '""')).join(' | ') : ''}"`
+      `"${tweet.isThread && tweet.threadTweets ? tweet.threadTweets.map(t => t.replace(/"/g, '""')).join(' | ') : ''}"`,
+      `"${tweet.quotedTweetUrl || ''}"`,
+      `"${tweet.mediaUrls ? tweet.mediaUrls.join(' | ') : ''}"`
     ])
     
     return [headers.join(','), ...rows.map(row => row.join(','))].join('\n')
