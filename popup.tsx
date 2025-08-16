@@ -124,50 +124,70 @@ function IndexPopup() {
   }
 
   return (
-    <div style={{ width: 350, padding: 16 }}>
-      <h3 style={{ margin: '0 0 16px 0', color: '#1d9bf0' }}>
-        Twitter Scraper
-      </h3>
+    <div style={{ 
+      width: 350, 
+      padding: 16, 
+      fontFamily: '"JetBrains Mono", "Fira Code", "SF Mono", "Monaco", "Consolas", monospace',
+      backgroundColor: '#fefefe',
+      color: '#2d5016'
+    }}>
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        margin: '0 0 16px 0',
+        gap: '8px'
+      }}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+          <rect x="2" y="4" width="20" height="16" rx="2" stroke="#2d5016" strokeWidth="1.5" fill="none"/>
+          <path d="M6 8h8M6 12h12M6 16h6" stroke="#6b8e3d" strokeWidth="1.5" strokeLinecap="round"/>
+          <circle cx="18" cy="8" r="2" fill="#a3c55f"/>
+          <path d="M16 10l4 4" stroke="#6b8e3d" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+        <h3 style={{ margin: 0, color: '#2d5016', fontSize: '18px', fontWeight: 600 }}>
+          ScrollNScrape
+        </h3>
+      </div>
       
       {!isOnTwitter && (
         <div style={{ 
-          background: '#fff3cd', 
-          border: '1px solid #ffeaa7', 
+          background: '#fff8e1', 
+          border: '1px solid #a3c55f', 
           padding: 8, 
-          borderRadius: 4, 
+          borderRadius: 6, 
           marginBottom: 16,
-          fontSize: '14px'
+          fontSize: '13px',
+          color: '#2d5016'
         }}>
           ⚠️ Please navigate to a X.com profile page to use this extension
         </div>
       )}
 
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', marginBottom: 8, fontWeight: 'bold' }}>
+        <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: '14px', color: '#2d5016' }}>
           Scraping Options:
         </label>
         
         <div style={{ marginBottom: 8 }}>
-          <label style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+          <label style={{ display: 'flex', alignItems: 'center', marginBottom: 4, fontSize: '13px', cursor: 'pointer' }}>
             <input
               type="radio"
               value="all"
               checked={scrapeMode === 'all'}
               onChange={(e) => setScrapeMode(e.target.value as ScrapeMode)}
-              style={{ marginRight: 8 }}
+              style={{ marginRight: 8, accentColor: '#a3c55f' }}
             />
             Scrape all tweets
           </label>
         </div>
 
         <div style={{ marginBottom: 8 }}>
-          <label style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+          <label style={{ display: 'flex', alignItems: 'center', marginBottom: 4, fontSize: '13px', cursor: 'pointer' }}>
             <input
               type="radio"
               value="count"
               checked={scrapeMode === 'count'}
               onChange={(e) => setScrapeMode(e.target.value as ScrapeMode)}
-              style={{ marginRight: 8 }}
+              style={{ marginRight: 8, accentColor: '#a3c55f' }}
             />
             Limit to specific number
           </label>
@@ -179,23 +199,26 @@ function IndexPopup() {
               placeholder="Number of tweets"
               style={{ 
                 marginLeft: 24, 
-                padding: 4, 
-                border: '1px solid #ccc', 
+                padding: 6, 
+                border: '1px solid #6b8e3d', 
                 borderRadius: 4,
-                width: 120
+                width: 120,
+                fontSize: '13px',
+                backgroundColor: '#fefefe',
+                color: '#2d5016'
               }}
             />
           )}
         </div>
 
         <div style={{ marginBottom: 8 }}>
-          <label style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+          <label style={{ display: 'flex', alignItems: 'center', marginBottom: 4, fontSize: '13px', cursor: 'pointer' }}>
             <input
               type="radio"
               value="date"
               checked={scrapeMode === 'date'}
               onChange={(e) => setScrapeMode(e.target.value as ScrapeMode)}
-              style={{ marginRight: 8 }}
+              style={{ marginRight: 8, accentColor: '#a3c55f' }}
             />
             Date range (experimental)
           </label>
@@ -207,10 +230,13 @@ function IndexPopup() {
                 onChange={(e) => setStartDate(e.target.value)}
                 style={{ 
                   marginBottom: 4, 
-                  padding: 4, 
-                  border: '1px solid #ccc', 
+                  padding: 6, 
+                  border: '1px solid #6b8e3d', 
                   borderRadius: 4,
-                  width: '100%'
+                  width: '100%',
+                  fontSize: '13px',
+                  backgroundColor: '#fefefe',
+                  color: '#2d5016'
                 }}
               />
               <input
@@ -218,10 +244,13 @@ function IndexPopup() {
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 style={{ 
-                  padding: 4, 
-                  border: '1px solid #ccc', 
+                  padding: 6, 
+                  border: '1px solid #6b8e3d', 
                   borderRadius: 4,
-                  width: '100%'
+                  width: '100%',
+                  fontSize: '13px',
+                  backgroundColor: '#fefefe',
+                  color: '#2d5016'
                 }}
               />
             </div>
@@ -234,14 +263,17 @@ function IndexPopup() {
           onClick={isActive ? stopScraping : startScraping}
           disabled={!isOnTwitter}
           style={{
-            background: isActive ? '#dc3545' : '#1d9bf0',
+            background: isActive ? '#d32f2f' : '#6b8e3d',
             color: 'white',
             border: 'none',
-            padding: '8px 16px',
+            padding: '10px 16px',
             borderRadius: 6,
             cursor: isOnTwitter ? 'pointer' : 'not-allowed',
             width: '100%',
-            marginBottom: 8
+            marginBottom: 8,
+            fontSize: '13px',
+            fontWeight: 600,
+            fontFamily: 'inherit'
           }}
         >
           {isActive ? 'Stop Scraping' : 'Start Scraping'}
@@ -251,13 +283,16 @@ function IndexPopup() {
           <button
             onClick={downloadCSV}
             style={{
-              background: '#28a745',
-              color: 'white',
+              background: '#a3c55f',
+              color: '#2d5016',
               border: 'none',
-              padding: '8px 16px',
+              padding: '10px 16px',
               borderRadius: 6,
               cursor: 'pointer',
-              width: '100%'
+              width: '100%',
+              fontSize: '13px',
+              fontWeight: 600,
+              fontFamily: 'inherit'
             }}
           >
             Download CSV ({scrapedTweets.length} tweets)
@@ -266,22 +301,20 @@ function IndexPopup() {
       </div>
 
       <div style={{ 
-        background: '#f8f9fa', 
-        padding: 8, 
-        borderRadius: 4, 
-        fontSize: '14px'
+        background: '#f8fdf4', 
+        padding: 10, 
+        borderRadius: 6, 
+        fontSize: '13px',
+        border: '1px solid #e8f5e8'
       }}>
-        <div><strong>Status:</strong> {status}</div>
-        <div><strong>Tweets found:</strong> {tweetCount}</div>
-      </div>
-
-      <div style={{ 
-        fontSize: '12px', 
-        color: '#666', 
-        marginTop: 12, 
-        textAlign: 'center' 
-      }}>
-        ⚠️ Use responsibly. Respect X.com's terms of service.
+        <div style={{ marginBottom: 4 }}>
+          <span style={{ fontWeight: 600, color: '#2d5016' }}>Status:</span> 
+          <span style={{ marginLeft: 8 }}>{status}</span>
+        </div>
+        <div>
+          <span style={{ fontWeight: 600, color: '#2d5016' }}>Tweets found:</span> 
+          <span style={{ marginLeft: 8 }}>{tweetCount}</span>
+        </div>
       </div>
     </div>
   )

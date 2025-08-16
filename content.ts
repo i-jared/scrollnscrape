@@ -29,6 +29,8 @@ class TwitterScraper {
   private scrollInterval: NodeJS.Timeout | null = null;
   private isActive = false;
   private config: ScrapingConfig = { scrapeAll: true };
+  private lastTweetCount = 0;
+  private noNewTweetsStartTime: number | null = null;
 
   constructor() {
     this.setupMessageListener();
@@ -66,6 +68,8 @@ class TwitterScraper {
     this.config = config;
     this.isActive = true;
     this.allTweets = [];
+    this.lastTweetCount = 0;
+    this.noNewTweetsStartTime = null;
 
     console.log('Starting tweet scraping with config:', config);
     
@@ -138,6 +142,16 @@ class TwitterScraper {
     });
 
     console.log(`Scraped ${this.allTweets.length} unique tweets so far (${newTweetsFound} new).`);
+    
+    // Track if new tweets were found for timeout detection
+    if (this.allTweets.length > this.lastTweetCount) {
+      // New tweets found, reset timeout
+      this.lastTweetCount = this.allTweets.length;
+      this.noNewTweetsStartTime = null;
+    } else if (this.noNewTweetsStartTime === null) {
+      // No new tweets and timer not started, start it
+      this.noNewTweetsStartTime = Date.now();
+    }
     
     // More informative status for date range scraping
     if (this.config.dateRange) {
@@ -355,7 +369,16 @@ class TwitterScraper {
       return true;
     }
 
-    // For scrape all mode, never stop
+    // Check for timeout - no new tweets in 5 seconds
+    if (this.noNewTweetsStartTime !== null) {
+      const timeSinceLastTweet = Date.now() - this.noNewTweetsStartTime;
+      if (timeSinceLastTweet > 5000) { // 5 seconds
+        console.log('No new tweets found in 5 seconds, stopping scraper');
+        return true;
+      }
+    }
+
+    // For scrape all mode, continue unless timeout
     if (this.config.scrapeAll) {
       return false;
     }
